@@ -1,0 +1,1110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EDA Studio — Intelligent Dataset Explorer</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<style>
+  :root {
+    --rose: #f4a8b8; --rose-light: #fdf0f3; --rose-mid: #e8778f; --rose-dark: #c44d6a;
+    --sage: #a8c5b8; --sage-light: #eef5f2; --sage-mid: #6fa896; --sage-dark: #3d7a6b;
+    --sand: #e8d5b7; --sand-light: #faf5ed; --sand-mid: #c9a87a; --sand-dark: #8a6540;
+    --lavender: #c5b8e8; --lavender-light: #f3f0fb; --lavender-mid: #9b89d4; --lavender-dark: #5e4aaa;
+    --sky: #b8d4e8; --sky-light: #eef4f9; --sky-mid: #6a9fc4; --sky-dark: #2d6a96;
+    --peach: #f4c5a8; --peach-light: #fef5ef; --peach-mid: #d4894a; --peach-dark: #9a5520;
+    --cream: #faf7f2; --white: #ffffff; --ink: #2d2820; --ink-mid: #6b6258; --ink-light: #a09890;
+    --border: rgba(45,40,32,0.10); --border-mid: rgba(45,40,32,0.18);
+    --shadow: 0 2px 16px rgba(45,40,32,0.07), 0 1px 4px rgba(45,40,32,0.05);
+    --shadow-md: 0 4px 24px rgba(45,40,32,0.10), 0 2px 8px rgba(45,40,32,0.06);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'DM Sans', sans-serif; background: var(--cream); color: var(--ink); min-height: 100vh; }
+
+  /* LANDING */
+  #landing { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; padding: 2rem; text-align: center; }
+  .logo-area { margin-bottom: 2.5rem; }
+  .logo-icon { width: 72px; height: 72px; background: linear-gradient(135deg, var(--rose-light) 0%, var(--lavender-light) 100%); border-radius: 20px; display: flex; align-items: center; justify-content: center; margin: 0 auto 1rem; border: 1.5px solid var(--border-mid); }
+  .logo-icon svg { width: 38px; height: 38px; }
+  h1.brand { font-family: 'DM Serif Display', serif; font-size: clamp(2rem, 5vw, 3.2rem); color: var(--ink); letter-spacing: -0.02em; line-height: 1.15; }
+  h1.brand em { font-style: italic; color: var(--rose-dark); }
+  .tagline { font-size: 1.05rem; color: var(--ink-mid); margin-top: 0.75rem; font-weight: 300; max-width: 420px; line-height: 1.65; }
+  .upload-zone { margin: 2.5rem 0; width: 100%; max-width: 540px; }
+  .drop-area { border: 2px dashed var(--rose-mid); border-radius: 20px; background: var(--white); padding: 3rem 2rem; cursor: pointer; transition: all 0.25s; position: relative; }
+  .drop-area:hover, .drop-area.dragging { border-color: var(--rose-dark); background: var(--rose-light); }
+  .drop-icon { font-size: 2.8rem; margin-bottom: 0.75rem; }
+  .drop-title { font-size: 1.05rem; font-weight: 500; color: var(--ink); margin-bottom: 0.35rem; }
+  .drop-sub { font-size: 0.875rem; color: var(--ink-mid); }
+  .drop-sub span { color: var(--rose-dark); font-weight: 500; cursor: pointer; }
+  #fileInput { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+  .formats { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-top: 1.5rem; }
+  .fmt-badge { padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 500; background: var(--sand-light); color: var(--sand-dark); border: 1px solid var(--sand); }
+  .sample-btn { margin-top: 1rem; background: none; border: 1.5px solid var(--border-mid); border-radius: 30px; padding: 8px 20px; font-family: 'DM Sans', sans-serif; font-size: 0.875rem; color: var(--ink-mid); cursor: pointer; transition: all 0.2s; }
+  .sample-btn:hover { border-color: var(--sage-mid); color: var(--sage-dark); background: var(--sage-light); }
+  .pills-row { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; margin-top: 2rem; max-width: 560px; }
+  .feature-pill { display: flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 30px; background: var(--white); border: 1px solid var(--border); font-size: 0.8rem; color: var(--ink-mid); }
+  .pill-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+  /* LOADING */
+  #loading { display: none; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; }
+  .loader-ring { width: 60px; height: 60px; border: 3px solid var(--rose-light); border-top-color: var(--rose-dark); border-radius: 50%; animation: spin 0.9s linear infinite; margin-bottom: 1.5rem; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loader-text { font-family: 'DM Serif Display', serif; font-size: 1.4rem; color: var(--ink); margin-bottom: 0.4rem; }
+  .loader-sub { font-size: 0.875rem; color: var(--ink-mid); }
+  .loader-steps { display: flex; flex-direction: column; gap: 6px; margin-top: 1.5rem; max-width: 280px; }
+  .loader-step { display: flex; align-items: center; gap: 8px; font-size: 0.8rem; color: var(--ink-light); opacity: 0; transition: opacity 0.4s; }
+  .loader-step.active { opacity: 1; color: var(--sage-dark); }
+  .step-check { width: 16px; height: 16px; border-radius: 50%; background: var(--sage-light); border: 1.5px solid var(--sage-mid); display: flex; align-items: center; justify-content: center; font-size: 9px; color: var(--sage-dark); flex-shrink: 0; }
+
+  /* DASHBOARD */
+  #dashboard { display: none; }
+  .top-bar { background: var(--white); border-bottom: 1px solid var(--border); padding: 0.9rem 2rem; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
+  .top-brand { font-family: 'DM Serif Display', serif; font-size: 1.2rem; color: var(--ink); display: flex; align-items: center; gap: 10px; }
+  .top-brand .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--rose-mid); }
+  .file-badge { display: flex; align-items: center; gap: 6px; padding: 5px 14px; border-radius: 20px; background: var(--rose-light); border: 1px solid var(--rose); font-size: 0.8rem; color: var(--rose-dark); font-weight: 500; }
+  .top-actions { display: flex; gap: 10px; align-items: center; }
+  .btn-outline { padding: 6px 16px; border-radius: 20px; border: 1.5px solid var(--border-mid); background: var(--white); font-family: 'DM Sans', sans-serif; font-size: 0.8rem; color: var(--ink-mid); cursor: pointer; transition: all 0.2s; font-weight: 500; }
+  .btn-outline:hover { border-color: var(--sage-mid); color: var(--sage-dark); background: var(--sage-light); }
+  .btn-primary { padding: 6px 18px; border-radius: 20px; border: none; background: var(--rose-dark); font-family: 'DM Sans', sans-serif; font-size: 0.8rem; color: white; cursor: pointer; transition: all 0.2s; font-weight: 500; }
+  .btn-primary:hover { background: var(--rose-mid); }
+
+  .dash-content { padding: 2rem; max-width: 1400px; margin: 0 auto; }
+  .section-title { font-family: 'DM Serif Display', serif; font-size: 1.25rem; color: var(--ink); margin-bottom: 1.25rem; display: flex; align-items: center; gap: 10px; }
+  .section-title .line { height: 2px; flex: 1; background: linear-gradient(to right, var(--border), transparent); }
+
+  /* OVERVIEW CARDS */
+  .overview-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; margin-bottom: 2rem; }
+  .ov-card { background: var(--white); border-radius: 16px; padding: 1.2rem; border: 1px solid var(--border); box-shadow: var(--shadow); }
+  .ov-label { font-size: 0.75rem; color: var(--ink-light); font-weight: 500; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 0.4rem; }
+  .ov-value { font-family: 'DM Serif Display', serif; font-size: 2rem; color: var(--ink); line-height: 1; }
+  .ov-sub { font-size: 0.75rem; color: var(--ink-mid); margin-top: 0.3rem; }
+  .ov-accent { width: 32px; height: 4px; border-radius: 2px; margin-bottom: 0.75rem; }
+
+  /* INSIGHTS */
+  .insights-bar { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 4px; margin-bottom: 2rem; scrollbar-width: none; }
+  .insights-bar::-webkit-scrollbar { display: none; }
+  .insight-card { flex-shrink: 0; background: var(--white); border-radius: 14px; padding: 0.9rem 1.1rem; border: 1px solid var(--border); box-shadow: var(--shadow); min-width: 220px; max-width: 260px; }
+  .insight-type { font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 0.3rem; }
+  .insight-msg { font-size: 0.82rem; color: var(--ink); line-height: 1.5; }
+
+  /* TABS */
+  .tabs { display: flex; gap: 4px; background: var(--white); border: 1px solid var(--border); border-radius: 12px; padding: 4px; margin-bottom: 1.5rem; width: fit-content; }
+  .tab { padding: 6px 18px; border-radius: 8px; font-size: 0.85rem; cursor: pointer; transition: all 0.2s; color: var(--ink-mid); font-weight: 400; border: none; background: none; font-family: 'DM Sans', sans-serif; }
+  .tab.active { background: var(--rose-light); color: var(--rose-dark); font-weight: 500; }
+
+  /* CHARTS GRID */
+  .charts-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: 16px; }
+  .chart-card { background: var(--white); border-radius: 18px; padding: 1.5rem; border: 1px solid var(--border); box-shadow: var(--shadow); }
+  .chart-header { margin-bottom: 1rem; }
+  .chart-name { font-weight: 500; font-size: 0.92rem; color: var(--ink); margin-bottom: 2px; }
+  .chart-desc { font-size: 0.75rem; color: var(--ink-light); }
+  .chart-wrap { position: relative; height: 220px; }
+  .chart-wrap-tall { position: relative; height: 280px; }
+
+  /* STATS TABLE */
+  .stats-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+  .stats-table th { text-align: left; padding: 8px 12px; background: var(--cream); color: var(--ink-mid); font-weight: 500; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid var(--border); }
+  .stats-table td { padding: 8px 12px; border-bottom: 1px solid var(--border); color: var(--ink); }
+  .stats-table tr:last-child td { border-bottom: none; }
+  .stats-table tr:hover td { background: var(--cream); }
+  .type-badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 0.7rem; font-weight: 500; }
+  .type-num { background: var(--sky-light); color: var(--sky-dark); }
+  .type-cat { background: var(--lavender-light); color: var(--lavender-dark); }
+  .type-bool { background: var(--peach-light); color: var(--peach-dark); }
+  .null-bar-wrap { display: flex; align-items: center; gap: 6px; }
+  .null-bar-bg { height: 6px; width: 80px; background: var(--border); border-radius: 3px; }
+  .null-bar-fill { height: 6px; border-radius: 3px; }
+
+  /* CORRELATION */
+  .corr-grid { display: grid; gap: 2px; }
+  .corr-cell { width: 100%; aspect-ratio: 1; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 500; transition: transform 0.15s; cursor: default; }
+  .corr-cell:hover { transform: scale(1.08); z-index: 10; position: relative; }
+  .corr-label { font-size: 10px; color: var(--ink-mid); text-align: center; }
+
+  /* PATTERNS */
+  .patterns-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; }
+  .pattern-card { background: var(--white); border-radius: 16px; padding: 1.25rem; border: 1px solid var(--border); box-shadow: var(--shadow); }
+  .pattern-icon { font-size: 1.5rem; margin-bottom: 0.5rem; }
+  .pattern-title { font-weight: 500; font-size: 0.9rem; color: var(--ink); margin-bottom: 0.3rem; }
+  .pattern-desc { font-size: 0.8rem; color: var(--ink-mid); line-height: 1.55; }
+  .pattern-tag { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 0.7rem; font-weight: 500; margin-top: 0.5rem; }
+
+  /* NOTEBOOK */
+  .notebook-wrap { background: #1e1d1a; border-radius: 18px; overflow: hidden; box-shadow: var(--shadow-md); }
+  .nb-header { background: #2a2926; padding: 0.75rem 1.25rem; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.06); }
+  .nb-title { font-family: 'DM Mono', monospace; font-size: 0.82rem; color: #a09080; }
+  .nb-copy { padding: 4px 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.12); background: none; color: #a09080; font-family: 'DM Sans', sans-serif; font-size: 0.75rem; cursor: pointer; transition: all 0.2s; }
+  .nb-copy:hover { background: rgba(255,255,255,0.06); color: #f4a8b8; }
+  .nb-body { padding: 1.5rem; max-height: 600px; overflow-y: auto; }
+  .nb-cell { margin-bottom: 1.5rem; }
+  .nb-cell-header { font-family: 'DM Mono', monospace; font-size: 0.7rem; color: #6b6258; margin-bottom: 0.4rem; }
+  .nb-cell-body { background: #252422; border-radius: 8px; padding: 1rem; border-left: 3px solid var(--rose-mid); }
+  .nb-cell-body.md-cell { border-left-color: var(--sage-mid); }
+  pre { font-family: 'DM Mono', monospace; font-size: 0.78rem; color: #e8d5b7; line-height: 1.7; white-space: pre-wrap; word-break: break-word; }
+  .kw { color: #c5b8e8; } .fn { color: #a8c5b8; } .str { color: #f4c5a8; } .cm { color: #6b6258; } .num { color: #f4a8b8; }
+
+  /* SECTION PANELS */
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  /* TOP DATA TABLE */
+  .data-table-wrap { overflow-x: auto; border-radius: 14px; border: 1px solid var(--border); }
+  .data-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+  .data-table th { background: var(--cream); padding: 8px 14px; text-align: left; font-weight: 500; color: var(--ink-mid); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  .data-table td { padding: 7px 14px; border-bottom: 1px solid var(--border); color: var(--ink); font-family: 'DM Mono', monospace; font-size: 0.78rem; white-space: nowrap; max-width: 160px; overflow: hidden; text-overflow: ellipsis; }
+  .data-table tr:last-child td { border-bottom: none; }
+  .data-table tr:hover td { background: var(--rose-light); }
+
+  .empty-state { text-align: center; padding: 3rem; color: var(--ink-light); font-size: 0.9rem; }
+
+  @media (max-width: 640px) {
+    .charts-grid { grid-template-columns: 1fr; }
+    .dash-content { padding: 1rem; }
+    .top-bar { padding: 0.75rem 1rem; }
+  }
+</style>
+</head>
+<body>
+
+<!-- LANDING -->
+<div id="landing">
+  <div class="logo-area">
+    <div class="logo-icon">
+      <svg viewBox="0 0 38 38" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="10" cy="28" r="4" fill="#e8778f" opacity="0.8"/>
+        <circle cx="19" cy="18" r="4" fill="#9b89d4" opacity="0.8"/>
+        <circle cx="28" cy="10" r="4" fill="#6fa896" opacity="0.8"/>
+        <line x1="10" y1="28" x2="19" y2="18" stroke="#c44d6a" stroke-width="1.5" stroke-dasharray="3,2"/>
+        <line x1="19" y1="18" x2="28" y2="10" stroke="#6fa896" stroke-width="1.5" stroke-dasharray="3,2"/>
+        <rect x="4" y="4" width="8" height="6" rx="2" fill="#f4a8b8" opacity="0.5"/>
+        <rect x="26" y="24" width="8" height="6" rx="2" fill="#a8c5b8" opacity="0.5"/>
+      </svg>
+    </div>
+    <h1 class="brand">EDA <em>Studio</em></h1>
+    <p class="tagline">Drop any dataset. Get a beautiful analysis dashboard with hidden pattern detection and exportable notebook code.</p>
+  </div>
+
+  <div class="upload-zone">
+    <div class="drop-area" id="dropArea">
+      <input type="file" id="fileInput" accept=".csv,.tsv,.json">
+      <div class="drop-icon">🌸</div>
+      <div class="drop-title">Drop your dataset here</div>
+      <div class="drop-sub">or <span onclick="document.getElementById('fileInput').click()">browse files</span></div>
+    </div>
+    <div class="formats">
+      <span class="fmt-badge">CSV</span>
+      <span class="fmt-badge">TSV</span>
+      <span class="fmt-badge">JSON</span>
+    </div>
+    <div style="margin-top: 1rem; text-align: center;">
+      <button class="sample-btn" onclick="loadSampleData()">✦ Try with sample dataset</button>
+    </div>
+  </div>
+
+  <div class="pills-row">
+    <div class="feature-pill"><span class="pill-dot" style="background:var(--rose-mid)"></span> Smart pattern detection</div>
+    <div class="feature-pill"><span class="pill-dot" style="background:var(--sage-mid)"></span> Distribution analysis</div>
+    <div class="feature-pill"><span class="pill-dot" style="background:var(--lavender-mid)"></span> Correlation heatmap</div>
+    <div class="feature-pill"><span class="pill-dot" style="background:var(--sand-mid)"></span> Jupyter notebook export</div>
+    <div class="feature-pill"><span class="pill-dot" style="background:var(--sky-mid)"></span> Outlier detection</div>
+  </div>
+</div>
+
+<!-- LOADING -->
+<div id="loading">
+  <div class="loader-ring"></div>
+  <div class="loader-text">Analysing your data</div>
+  <div class="loader-sub">Looking for patterns & insights…</div>
+  <div class="loader-steps">
+    <div class="loader-step" id="step1"><div class="step-check">✓</div> Parsing dataset structure</div>
+    <div class="loader-step" id="step2"><div class="step-check">✓</div> Computing statistics</div>
+    <div class="loader-step" id="step3"><div class="step-check">✓</div> Detecting hidden patterns</div>
+    <div class="loader-step" id="step4"><div class="step-check">✓</div> Building visualisations</div>
+    <div class="loader-step" id="step5"><div class="step-check">✓</div> Generating notebook code</div>
+  </div>
+</div>
+
+<!-- DASHBOARD -->
+<div id="dashboard">
+  <div class="top-bar">
+    <div class="top-brand"><div class="dot"></div> EDA Studio</div>
+    <div id="fileBadge" class="file-badge">📊 dataset.csv</div>
+    <div class="top-actions">
+      <button class="btn-outline" onclick="resetApp()">← New dataset</button>
+      <button class="btn-primary" onclick="downloadNotebook()">⬇ Export notebook</button>
+    </div>
+  </div>
+
+  <div class="dash-content">
+    <!-- OVERVIEW -->
+    <div class="section-title">Dataset overview <div class="line"></div></div>
+    <div class="overview-grid" id="overviewGrid"></div>
+
+    <!-- AI INSIGHTS -->
+    <div class="section-title">Detected patterns & insights <div class="line"></div></div>
+    <div class="insights-bar" id="insightsBar"></div>
+
+    <!-- TABS -->
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab('distributions', this)">Distributions</button>
+      <button class="tab" onclick="switchTab('correlations', this)">Correlations</button>
+      <button class="tab" onclick="switchTab('statistics', this)">Statistics</button>
+      <button class="tab" onclick="switchTab('data', this)">Raw data</button>
+      <button class="tab" onclick="switchTab('notebook', this)">Notebook</button>
+    </div>
+
+    <div id="tab-distributions" class="tab-panel active">
+      <div class="charts-grid" id="chartsGrid"></div>
+    </div>
+    <div id="tab-correlations" class="tab-panel">
+      <div class="chart-card" style="overflow-x: auto;">
+        <div class="chart-header">
+          <div class="chart-name">Correlation matrix</div>
+          <div class="chart-desc">Pearson correlation between numeric features</div>
+        </div>
+        <div id="corrMatrix"></div>
+      </div>
+    </div>
+    <div id="tab-statistics" class="tab-panel">
+      <div class="chart-card" style="overflow-x: auto; padding: 0;">
+        <table class="stats-table" id="statsTable"></table>
+      </div>
+    </div>
+    <div id="tab-data" class="tab-panel">
+      <div class="data-table-wrap">
+        <table class="data-table" id="dataTable"></table>
+      </div>
+    </div>
+    <div id="tab-notebook" class="tab-panel">
+      <div class="notebook-wrap">
+        <div class="nb-header">
+          <div class="nb-title">📓 eda_analysis.ipynb — Python / Jupyter</div>
+          <button class="nb-copy" onclick="copyNotebook()">Copy all code</button>
+        </div>
+        <div class="nb-body" id="notebookBody"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+let globalData = null;
+let globalColumns = null;
+let globalFileName = 'dataset';
+let chartInstances = [];
+
+// ─── DRAG & DROP ───
+const dropArea = document.getElementById('dropArea');
+const fileInput = document.getElementById('fileInput');
+dropArea.addEventListener('dragover', e => { e.preventDefault(); dropArea.classList.add('dragging'); });
+dropArea.addEventListener('dragleave', () => dropArea.classList.remove('dragging'));
+dropArea.addEventListener('drop', e => {
+  e.preventDefault(); dropArea.classList.remove('dragging');
+  const file = e.dataTransfer.files[0];
+  if (file) processFile(file);
+});
+fileInput.addEventListener('change', e => { if (e.target.files[0]) processFile(e.target.files[0]); });
+
+function processFile(file) {
+  globalFileName = file.name.replace(/\.[^.]+$/, '');
+  document.getElementById('fileBadge').textContent = '📊 ' + file.name;
+  showLoading();
+  const reader = new FileReader();
+  reader.onload = e => {
+    const content = e.target.result;
+    const ext = file.name.split('.').pop().toLowerCase();
+    try {
+      if (ext === 'json') {
+        const json = JSON.parse(content);
+        const rows = Array.isArray(json) ? json : (json.data || Object.values(json)[0] || []);
+        parseAndRender(rows);
+      } else {
+        const delim = ext === 'tsv' ? '\t' : ',';
+        Papa.parse(content, { header: true, dynamicTyping: true, skipEmptyLines: true, delimiter: delim,
+          complete: r => parseAndRender(r.data) });
+      }
+    } catch(err) { alert('Could not parse file: ' + err.message); showLanding(); }
+  };
+  reader.readAsText(file);
+}
+
+async function showLoading() {
+  document.getElementById('landing').style.display = 'none';
+  document.getElementById('dashboard').style.display = 'none';
+  document.getElementById('loading').style.display = 'flex';
+  const steps = ['step1','step2','step3','step4','step5'];
+  for (let i = 0; i < steps.length; i++) {
+    await delay(380 + i * 160);
+    document.getElementById(steps[i]).classList.add('active');
+  }
+}
+
+function showLanding() {
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('dashboard').style.display = 'none';
+  document.getElementById('landing').style.display = 'flex';
+}
+
+function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+function resetApp() {
+  chartInstances.forEach(c => c.destroy());
+  chartInstances = [];
+  document.getElementById('fileInput').value = '';
+  showLanding();
+}
+
+// ─── PARSE & RENDER ───
+function parseAndRender(rows) {
+  if (!rows || rows.length === 0) { alert('No data found'); showLanding(); return; }
+  globalData = rows;
+  globalColumns = Object.keys(rows[0]);
+  setTimeout(() => {
+    buildDashboard(rows, globalColumns);
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('dashboard').style.display = 'block';
+    // reset steps
+    ['step1','step2','step3','step4','step5'].forEach(s => document.getElementById(s).classList.remove('active'));
+  }, 2200);
+}
+
+function buildDashboard(rows, cols) {
+  const analysis = analyseData(rows, cols);
+  renderOverview(analysis);
+  renderInsights(analysis);
+  renderCharts(analysis, rows);
+  renderCorrelation(analysis);
+  renderStats(analysis);
+  renderDataTable(rows, cols);
+  renderNotebook(analysis, rows, cols);
+}
+
+// ─── DATA ANALYSIS ───
+function analyseData(rows, cols) {
+  const n = rows.length;
+  const colInfo = {};
+  const numCols = [], catCols = [];
+
+  cols.forEach(col => {
+    const vals = rows.map(r => r[col]);
+    const nonNull = vals.filter(v => v !== null && v !== undefined && v !== '');
+    const nullCount = n - nonNull.length;
+    const isNumeric = nonNull.length > 0 && nonNull.every(v => !isNaN(+v) && v !== '');
+    
+    if (isNumeric) {
+      const nums = nonNull.map(v => +v).sort((a,b) => a-b);
+      const mean = nums.reduce((a,b) => a+b, 0) / nums.length;
+      const variance = nums.reduce((a,b) => a + (b-mean)**2, 0) / nums.length;
+      const std = Math.sqrt(variance);
+      const q1 = percentile(nums, 25), median = percentile(nums, 50), q3 = percentile(nums, 75);
+      const iqr = q3 - q1;
+      const outliers = nums.filter(v => v < q1 - 1.5*iqr || v > q3 + 1.5*iqr);
+      const skewness = calcSkewness(nums, mean, std);
+      colInfo[col] = { type: 'numeric', nullCount, nullPct: nullCount/n*100, nonNull: nums, min: nums[0], max: nums[nums.length-1], mean, std, median, q1, q3, iqr, outliers, skewness, unique: new Set(nums).size };
+      numCols.push(col);
+    } else {
+      const freq = {};
+      nonNull.forEach(v => { const k = String(v); freq[k] = (freq[k]||0)+1; });
+      const sorted = Object.entries(freq).sort((a,b) => b[1]-a[1]);
+      colInfo[col] = { type: 'categorical', nullCount, nullPct: nullCount/n*100, freq, topValues: sorted.slice(0,10), unique: Object.keys(freq).length };
+      catCols.push(col);
+    }
+  });
+
+  // Correlations
+  const corrMatrix = {};
+  numCols.forEach(c1 => {
+    corrMatrix[c1] = {};
+    numCols.forEach(c2 => {
+      corrMatrix[c1][c2] = pearsonCorr(rows.map(r=>+r[c1]), rows.map(r=>+r[c2]));
+    });
+  });
+
+  // Patterns
+  const patterns = detectPatterns(colInfo, numCols, catCols, rows, corrMatrix, n);
+
+  return { n, cols, numCols, catCols, colInfo, corrMatrix, patterns };
+}
+
+function percentile(sorted, p) {
+  const idx = (p/100) * (sorted.length - 1);
+  const lo = Math.floor(idx), hi = Math.ceil(idx);
+  return sorted[lo] + (sorted[hi] - sorted[lo]) * (idx - lo);
+}
+
+function calcSkewness(nums, mean, std) {
+  if (std === 0) return 0;
+  const n = nums.length;
+  return nums.reduce((a,v) => a + ((v-mean)/std)**3, 0) / n;
+}
+
+function pearsonCorr(a, b) {
+  const n = a.length;
+  const ma = a.reduce((s,v)=>s+v,0)/n, mb = b.reduce((s,v)=>s+v,0)/n;
+  let num=0, da=0, db=0;
+  for (let i=0; i<n; i++) { num+=(a[i]-ma)*(b[i]-mb); da+=(a[i]-ma)**2; db+=(b[i]-mb)**2; }
+  return (da && db) ? num/Math.sqrt(da*db) : 0;
+}
+
+function detectPatterns(colInfo, numCols, catCols, rows, corrMatrix, n) {
+  const patterns = [];
+
+  // High correlations
+  numCols.forEach(c1 => numCols.forEach(c2 => {
+    if (c1 >= c2) return;
+    const r = corrMatrix[c1][c2];
+    if (Math.abs(r) > 0.75) {
+      patterns.push({ icon: '🔗', type: 'correlation', color: 'rose', title: `Strong ${r>0?'positive':'negative'} correlation`, desc: `${c1} & ${c2} are ${Math.abs(r)>0.9?'very strongly':'strongly'} correlated (r = ${r.toFixed(2)}).`, tag: Math.abs(r) > 0.9 ? 'Very strong' : 'Strong' });
+    }
+  }));
+
+  // Skewed distributions
+  numCols.forEach(col => {
+    const info = colInfo[col];
+    if (Math.abs(info.skewness) > 1.5) {
+      patterns.push({ icon: '📐', type: 'skewness', color: 'lavender', title: `${info.skewness > 0 ? 'Right' : 'Left'}-skewed: ${col}`, desc: `${col} shows significant ${info.skewness>0?'positive':'negative'} skewness (${info.skewness.toFixed(2)}). Consider log transformation.`, tag: 'Distribution' });
+    }
+  });
+
+  // Outliers
+  numCols.forEach(col => {
+    const info = colInfo[col];
+    const outlierPct = info.outliers.length / info.nonNull.length * 100;
+    if (outlierPct > 3) {
+      patterns.push({ icon: '⚡', type: 'outlier', color: 'peach', title: `Outliers in ${col}`, desc: `${info.outliers.length} outliers detected (${outlierPct.toFixed(1)}% of values). Range: [${info.min.toFixed(2)}, ${info.max.toFixed(2)}].`, tag: 'Outliers' });
+    }
+  });
+
+  // High nulls
+  Object.entries(colInfo).forEach(([col, info]) => {
+    if (info.nullPct > 15) {
+      patterns.push({ icon: '🕳️', type: 'missing', color: 'sage', title: `High missingness: ${col}`, desc: `${col} has ${info.nullPct.toFixed(1)}% missing values. Consider imputation or dropping.`, tag: 'Data quality' });
+    }
+  });
+
+  // High cardinality categoricals
+  catCols.forEach(col => {
+    const info = colInfo[col];
+    if (info.unique > n * 0.8 && info.unique > 20) {
+      patterns.push({ icon: '🆔', type: 'identifier', color: 'sky', title: `Possible ID column: ${col}`, desc: `${col} has ${info.unique} unique values (${(info.unique/n*100).toFixed(0)}% of rows). Likely an identifier or free-text field.`, tag: 'Feature type' });
+    }
+  });
+
+  // Dominant category
+  catCols.forEach(col => {
+    const info = colInfo[col];
+    if (info.topValues.length > 0) {
+      const topPct = info.topValues[0][1] / n * 100;
+      if (topPct > 70) {
+        patterns.push({ icon: '🎯', type: 'imbalance', color: 'sand', title: `Imbalanced: ${col}`, desc: `"${info.topValues[0][0]}" makes up ${topPct.toFixed(1)}% of values in ${col}. Class imbalance detected.`, tag: 'Imbalance' });
+      }
+    }
+  });
+
+  // Zero variance
+  numCols.forEach(col => {
+    if (colInfo[col].std < 0.0001) {
+      patterns.push({ icon: '📌', type: 'constant', color: 'sage', title: `Near-constant: ${col}`, desc: `${col} has almost no variance (std ≈ 0). This feature adds little predictive value.`, tag: 'Low variance' });
+    }
+  });
+
+  if (patterns.length === 0) patterns.push({ icon: '✅', type: 'clean', color: 'sage', title: 'Dataset looks clean', desc: 'No major issues detected. Data distributions appear healthy with minimal missingness.', tag: 'Healthy' });
+
+  return patterns.slice(0, 8);
+}
+
+// ─── RENDER OVERVIEW ───
+function renderOverview(a) {
+  const totalMissing = Object.values(a.colInfo).reduce((s,c)=>s+c.nullCount,0);
+  const missRate = (totalMissing / (a.n * a.cols.length) * 100).toFixed(1);
+  const grid = document.getElementById('overviewGrid');
+  const items = [
+    { label: 'Rows', value: a.n.toLocaleString(), sub: 'observations', accent: '#f4a8b8' },
+    { label: 'Columns', value: a.cols.length, sub: 'features', accent: '#c5b8e8' },
+    { label: 'Numeric', value: a.numCols.length, sub: 'quantitative cols', accent: '#a8c5b8' },
+    { label: 'Categorical', value: a.catCols.length, sub: 'qualitative cols', accent: '#f4c5a8' },
+    { label: 'Missing %', value: missRate + '%', sub: 'of all values', accent: '#b8d4e8' },
+    { label: 'Patterns', value: a.patterns.length, sub: 'detected insights', accent: '#e8d5b7' },
+  ];
+  grid.innerHTML = items.map(i => `
+    <div class="ov-card">
+      <div class="ov-accent" style="background:${i.accent}"></div>
+      <div class="ov-label">${i.label}</div>
+      <div class="ov-value">${i.value}</div>
+      <div class="ov-sub">${i.sub}</div>
+    </div>`).join('');
+}
+
+// ─── RENDER INSIGHTS ───
+function renderInsights(a) {
+  const colorMap = { rose:'#c44d6a,#fdf0f3', lavender:'#5e4aaa,#f3f0fb', sage:'#3d7a6b,#eef5f2', peach:'#9a5520,#fef5ef', sky:'#2d6a96,#eef4f9', sand:'#8a6540,#faf5ed' };
+  const bar = document.getElementById('insightsBar');
+  bar.innerHTML = a.patterns.map(p => {
+    const [tc, bg] = (colorMap[p.color]||'#2d2820,#faf7f2').split(',');
+    return `<div class="insight-card" style="border-top: 3px solid ${tc};">
+      <div class="insight-type" style="color:${tc}">${p.icon} ${p.tag}</div>
+      <div style="font-weight:500;font-size:0.85rem;color:var(--ink);margin-bottom:3px">${p.title}</div>
+      <div class="insight-msg">${p.desc}</div>
+    </div>`;
+  }).join('');
+}
+
+// ─── RENDER CHARTS ───
+const PALETTE = ['#e8778f','#9b89d4','#6fa896','#d4894a','#6a9fc4','#d4537e','#63992c','#c4a640'];
+const PALETTE_A = ['rgba(232,119,143,0.7)','rgba(155,137,212,0.7)','rgba(111,168,150,0.7)','rgba(212,137,74,0.7)','rgba(106,159,196,0.7)','rgba(212,83,126,0.7)'];
+
+function renderCharts(analysis, rows) {
+  chartInstances.forEach(c => c.destroy()); chartInstances = [];
+  const grid = document.getElementById('chartsGrid');
+  grid.innerHTML = '';
+
+  // Numeric: histograms
+  analysis.numCols.slice(0, 6).forEach((col, i) => {
+    const info = analysis.colInfo[col];
+    const card = createChartCard(col, `Distribution of ${col}`, `Mean: ${info.mean.toFixed(2)} | Std: ${info.std.toFixed(2)} | Skew: ${info.skewness.toFixed(2)}`);
+    grid.appendChild(card);
+    const bins = makeBins(info.nonNull, 20);
+    const ctx = card.querySelector('canvas').getContext('2d');
+    const color = PALETTE[i % PALETTE.length];
+    const ci = new Chart(ctx, {
+      type: 'bar',
+      data: { labels: bins.map(b => b.label), datasets: [{ data: bins.map(b => b.count), backgroundColor: color + 'aa', borderColor: color, borderWidth: 1, borderRadius: 4 }] },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
+        scales: { x: { ticks: { maxTicksLimit: 8, font: { size: 10 }, color: '#a09890' }, grid: { display: false } }, y: { ticks: { font: { size: 10 }, color: '#a09890' }, grid: { color: 'rgba(45,40,32,0.05)' } } } }
+    });
+    chartInstances.push(ci);
+  });
+
+  // Categorical: bar charts
+  analysis.catCols.slice(0, 4).forEach((col, i) => {
+    const info = analysis.colInfo[col];
+    const top = info.topValues.slice(0, 8);
+    const card = createChartCard(col, `Top values in ${col}`, `${info.unique} unique values`);
+    grid.appendChild(card);
+    const ctx = card.querySelector('canvas').getContext('2d');
+    const color = PALETTE[(i + analysis.numCols.length) % PALETTE.length];
+    const ci = new Chart(ctx, {
+      type: 'bar',
+      data: { labels: top.map(v=>v[0].length>14?v[0].slice(0,12)+'…':v[0]), datasets: [{ data: top.map(v=>v[1]), backgroundColor: PALETTE_A[(i+2) % PALETTE_A.length], borderColor: PALETTE[(i+2)%PALETTE.length], borderWidth: 1, borderRadius: 4 }] },
+      options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
+        scales: { x: { ticks: { font: { size: 10 }, color: '#a09890' }, grid: { color: 'rgba(45,40,32,0.05)' } }, y: { ticks: { font: { size: 10 }, color: '#a09890' }, grid: { display: false } } } }
+    });
+    chartInstances.push(ci);
+  });
+
+  // Scatter if ≥2 num cols
+  if (analysis.numCols.length >= 2) {
+    const [cx, cy] = analysis.numCols.slice(0, 2);
+    const card = createChartCard(`${cx} vs ${cy}`, `Scatter: ${cx} vs ${cy}`, 'Relationship between two numeric features', true);
+    grid.appendChild(card);
+    const sample = rows.slice(0, 400).map(r => ({ x: +r[cx], y: +r[cy] })).filter(p => !isNaN(p.x) && !isNaN(p.y));
+    const ctx = card.querySelector('canvas').getContext('2d');
+    const ci = new Chart(ctx, {
+      type: 'scatter',
+      data: { datasets: [{ data: sample, backgroundColor: '#e8778f55', borderColor: '#e8778f88', pointRadius: 3, pointBorderWidth: 0 }] },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
+        scales: { x: { title: { display: true, text: cx, font: { size: 10 }, color: '#a09890' }, ticks: { font: { size: 9 }, color: '#a09890' }, grid: { color: 'rgba(45,40,32,0.05)' } },
+                  y: { title: { display: true, text: cy, font: { size: 10 }, color: '#a09890' }, ticks: { font: { size: 9 }, color: '#a09890' }, grid: { color: 'rgba(45,40,32,0.05)' } } } }
+    });
+    chartInstances.push(ci);
+  }
+
+  // Box plot simulation (range bars)
+  if (analysis.numCols.length >= 2) {
+    const cols = analysis.numCols.slice(0, 6);
+    const card = createChartCard('Spread comparison', 'Normalised box ranges', 'IQR spread across numeric features', true);
+    grid.appendChild(card);
+    const ctx = card.querySelector('canvas').getContext('2d');
+    const normed = cols.map(col => {
+      const info = analysis.colInfo[col];
+      const rng = info.max - info.min || 1;
+      return { col, q1n: (info.q1-info.min)/rng, mdn: (info.median-info.min)/rng, q3n: (info.q3-info.min)/rng };
+    });
+    const ci = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: cols.map(c => c.length > 12 ? c.slice(0,10)+'…' : c),
+        datasets: [
+          { label: 'Q1–Q3', data: normed.map(n => [n.q1n, n.q3n]), backgroundColor: PALETTE_A[0], borderColor: PALETTE[0], borderWidth: 1, borderRadius: 4 },
+          { label: 'Median', data: normed.map(n => n.mdn), type: 'scatter', pointStyle: 'line', borderColor: '#2d2820', borderWidth: 2, pointRadius: 6, showLine: false }
+        ]
+      },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
+        scales: { x: { ticks: { font: { size: 10 }, color: '#a09890' }, grid: { display: false } }, y: { ticks: { font: { size: 10 }, color: '#a09890', callback: v => (v*100).toFixed(0)+'%' }, grid: { color: 'rgba(45,40,32,0.05)' } } } }
+    });
+    chartInstances.push(ci);
+  }
+
+  // Missing values chart
+  const withMissing = analysis.cols.filter(c => analysis.colInfo[c].nullCount > 0);
+  if (withMissing.length > 0) {
+    const card = createChartCard('Missing values', 'Null value distribution', 'Percentage of missing values per column');
+    grid.appendChild(card);
+    const ctx = card.querySelector('canvas').getContext('2d');
+    const ci = new Chart(ctx, {
+      type: 'bar',
+      data: { labels: withMissing.map(c => c.length>12?c.slice(0,10)+'…':c), datasets: [{ data: withMissing.map(c => +analysis.colInfo[c].nullPct.toFixed(1)), backgroundColor: '#b8d4e888', borderColor: '#6a9fc4', borderWidth: 1, borderRadius: 4 }] },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
+        scales: { x: { ticks: { font:{size:10}, color:'#a09890' }, grid:{display:false} }, y: { ticks: { font:{size:10}, color:'#a09890', callback: v => v+'%' }, grid:{color:'rgba(45,40,32,0.05)'}, max: 100 } } }
+    });
+    chartInstances.push(ci);
+  }
+}
+
+function createChartCard(id, name, desc, tall=false) {
+  const card = document.createElement('div');
+  card.className = 'chart-card';
+  card.innerHTML = `<div class="chart-header"><div class="chart-name">${name}</div><div class="chart-desc">${desc}</div></div>
+    <div class="${tall?'chart-wrap-tall':'chart-wrap'}"><canvas id="chart_${id.replace(/\s/g,'_')}"></canvas></div>`;
+  return card;
+}
+
+function makeBins(vals, n) {
+  const min = Math.min(...vals), max = Math.max(...vals);
+  const w = (max - min) / n || 1;
+  const bins = Array.from({length:n}, (_,i) => ({ label: (min+i*w).toFixed(1), count: 0 }));
+  vals.forEach(v => { let i = Math.min(Math.floor((v-min)/w), n-1); bins[i].count++; });
+  return bins;
+}
+
+// ─── CORRELATION MATRIX ───
+function renderCorrelation(analysis) {
+  const { numCols, corrMatrix } = analysis;
+  if (numCols.length === 0) { document.getElementById('corrMatrix').innerHTML = '<div class="empty-state">No numeric columns to correlate.</div>'; return; }
+  const cols = numCols.slice(0, 12);
+  const size = Math.min(Math.floor(560 / cols.length), 60);
+  let html = `<div style="display:flex;gap:4px;align-items:flex-end;margin-bottom:4px;padding-left:${size+4}px">`;
+  cols.forEach(c => html += `<div class="corr-label" style="width:${size}px;font-size:${Math.max(8,size*0.18)}px;writing-mode:vertical-rl;transform:rotate(180deg);height:60px;overflow:hidden;text-overflow:ellipsis">${c}</div>`);
+  html += `</div>`;
+  cols.forEach(r => {
+    html += `<div style="display:flex;align-items:center;gap:4px;margin-bottom:4px">`;
+    html += `<div class="corr-label" style="width:${size}px;font-size:${Math.max(8,size*0.18)}px;text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r}</div>`;
+    cols.forEach(c => {
+      const v = corrMatrix[r][c];
+      const bg = corrColor(v);
+      const textColor = Math.abs(v) > 0.5 ? 'white' : '#2d2820';
+      html += `<div class="corr-cell" style="width:${size}px;height:${size}px;background:${bg};color:${textColor};font-size:${Math.max(8,size*0.22)}px" title="${r} vs ${c}: ${v.toFixed(2)}">${v.toFixed(2)}</div>`;
+    });
+    html += `</div>`;
+  });
+  // Legend
+  html += `<div style="margin-top:12px;display:flex;align-items:center;gap:8px;font-size:11px;color:var(--ink-mid)">
+    <span>-1</span>
+    <div style="flex:0 0 180px;height:10px;border-radius:5px;background:linear-gradient(to right,#2d6a96,#eef4f9,#c44d6a)"></div>
+    <span>+1</span>
+    <span style="margin-left:8px">Negative ← → Positive</span>
+  </div>`;
+  document.getElementById('corrMatrix').innerHTML = html;
+}
+
+function corrColor(v) {
+  if (v > 0) { const t = v; return `rgba(196,77,106,${0.15+t*0.75})`; }
+  const t = -v; return `rgba(45,106,150,${0.15+t*0.75})`;
+}
+
+// ─── STATS TABLE ───
+function renderStats(analysis) {
+  const { cols, colInfo, n } = analysis;
+  let html = `<thead><tr>
+    <th>Column</th><th>Type</th><th>Non-null</th><th>Missing %</th><th>Unique</th>
+    <th>Min / Top</th><th>Max / Freq</th><th>Mean</th><th>Std</th><th>Median</th>
+  </tr></thead><tbody>`;
+  cols.forEach(col => {
+    const info = colInfo[col];
+    const nullBar = `<div class="null-bar-wrap"><div class="null-bar-bg"><div class="null-bar-fill" style="width:${info.nullPct}%;background:${info.nullPct>20?'#e8778f':'#a8c5b8'}"></div></div><span style="font-size:11px">${info.nullPct.toFixed(1)}%</span></div>`;
+    const typeClass = info.type === 'numeric' ? 'type-num' : 'type-cat';
+    if (info.type === 'numeric') {
+      html += `<tr><td style="font-weight:500">${col}</td><td><span class="type-badge ${typeClass}">numeric</span></td>
+        <td>${(n - info.nullCount).toLocaleString()}</td><td>${nullBar}</td><td>${info.unique.toLocaleString()}</td>
+        <td>${info.min.toFixed(3)}</td><td>${info.max.toFixed(3)}</td><td>${info.mean.toFixed(3)}</td><td>${info.std.toFixed(3)}</td><td>${info.median.toFixed(3)}</td></tr>`;
+    } else {
+      const top = info.topValues[0] || ['—', 0];
+      html += `<tr><td style="font-weight:500">${col}</td><td><span class="type-badge ${typeClass}">categ.</span></td>
+        <td>${(n - info.nullCount).toLocaleString()}</td><td>${nullBar}</td><td>${info.unique.toLocaleString()}</td>
+        <td>${String(top[0]).slice(0,20)}</td><td>${top[1]}</td><td>—</td><td>—</td><td>—</td></tr>`;
+    }
+  });
+  html += '</tbody>';
+  document.getElementById('statsTable').innerHTML = html;
+}
+
+// ─── DATA TABLE ───
+function renderDataTable(rows, cols) {
+  const show = rows.slice(0, 50);
+  let html = '<thead><tr>' + cols.map(c=>`<th>${c}</th>`).join('') + '</tr></thead><tbody>';
+  show.forEach(row => {
+    html += '<tr>' + cols.map(c => `<td title="${row[c]}">${row[c] !== null && row[c] !== undefined ? String(row[c]).slice(0,50) : '<span style="color:var(--ink-light);font-style:italic">null</span>'}</td>`).join('') + '</tr>';
+  });
+  html += '</tbody>';
+  document.getElementById('dataTable').innerHTML = html;
+}
+
+// ─── NOTEBOOK ───
+function renderNotebook(analysis, rows, cols) {
+  const { numCols, catCols, n } = analysis;
+  const fname = globalFileName;
+
+  const cells = [
+    { type: 'md', label: 'markdown', content: `# EDA Analysis: ${fname}\n_Auto-generated by EDA Studio_\n\n**Dataset**: ${n} rows × ${cols.length} columns` },
+    { type: 'code', label: 'In [1]:', content: buildImportsCode() },
+    { type: 'code', label: 'In [2]:', content: buildLoadCode(fname) },
+    { type: 'md', label: 'markdown', content: `## 1. Dataset overview` },
+    { type: 'code', label: 'In [3]:', content: buildOverviewCode() },
+    { type: 'md', label: 'markdown', content: `## 2. Missing values analysis` },
+    { type: 'code', label: 'In [4]:', content: buildMissingCode() },
+    { type: 'md', label: 'markdown', content: `## 3. Descriptive statistics` },
+    { type: 'code', label: 'In [5]:', content: buildDescStats() },
+    { type: 'md', label: 'markdown', content: `## 4. Distributions` },
+    { type: 'code', label: 'In [6]:', content: buildDistCode(numCols, catCols) },
+    { type: 'md', label: 'markdown', content: `## 5. Correlation analysis` },
+    { type: 'code', label: 'In [7]:', content: buildCorrCode(numCols) },
+    { type: 'md', label: 'markdown', content: `## 6. Outlier detection` },
+    { type: 'code', label: 'In [8]:', content: buildOutlierCode(numCols) },
+    { type: 'md', label: 'markdown', content: `## 7. Pattern detection` },
+    { type: 'code', label: 'In [9]:', content: buildPatternCode(numCols) },
+    { type: 'md', label: 'markdown', content: `## 8. Pairplot` },
+    { type: 'code', label: 'In [10]:', content: buildPairplotCode(numCols) },
+  ];
+
+  const body = document.getElementById('notebookBody');
+  body.innerHTML = cells.map(cell => `
+    <div class="nb-cell">
+      <div class="nb-cell-header">${cell.label}</div>
+      <div class="nb-cell-body ${cell.type==='md'?'md-cell':''}">
+        <pre>${syntaxHL(cell.content)}</pre>
+      </div>
+    </div>`).join('');
+}
+
+function syntaxHL(code) {
+  return code
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/(#[^\n]*)/g,'<span class="cm">$1</span>')
+    .replace(/\b(import|from|as|def|class|return|for|in|if|else|elif|with|print|True|False|None|and|or|not|is|lambda|pass)\b/g,'<span class="kw">$1</span>')
+    .replace(/\b(pd|np|plt|sns|df|fig|ax|corr|cols|col)\b/g,'<span class="fn">$1</span>')
+    .replace(/('[^']*'|"[^"]*")/g,'<span class="str">$1</span>')
+    .replace(/\b(\d+\.?\d*)\b/g,'<span class="num">$1</span>');
+}
+
+function buildImportsCode() {
+  return `import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+from scipy import stats
+import warnings
+warnings.filterwarnings('ignore')
+
+# Set style
+sns.set_theme(style='whitegrid', palette='husl')
+plt.rcParams['figure.dpi'] = 120
+plt.rcParams['font.family'] = 'DejaVu Sans'
+
+print("Libraries loaded ✓")`;
+}
+
+function buildLoadCode(fname) {
+  return `# Load dataset
+df = pd.read_csv('${fname}.csv')  # Adjust path as needed
+
+print(f"Shape: {df.shape[0]:,} rows × {df.shape[1]} columns")
+print(f"\\nColumn dtypes:")
+print(df.dtypes.to_string())
+df.head(10)`;
+}
+
+function buildOverviewCode() {
+  return `# Dataset overview
+print("=" * 50)
+print(f"Rows:    {len(df):,}")
+print(f"Columns: {len(df.columns)}")
+print(f"Memory:  {df.memory_usage(deep=True).sum() / 1024:.1f} KB")
+print("=" * 50)
+
+# Column types
+numeric_cols = df.select_dtypes(include=np.number).columns.tolist()
+cat_cols = df.select_dtypes(include=['object','category']).columns.tolist()
+print(f"\\nNumeric columns ({len(numeric_cols)}):    {numeric_cols}")
+print(f"Categorical columns ({len(cat_cols)}): {cat_cols}")`;
+}
+
+function buildMissingCode() {
+  return `# Missing values analysis
+missing = df.isnull().sum()
+missing_pct = (missing / len(df) * 100).round(2)
+missing_df = pd.DataFrame({
+    'Missing Count': missing,
+    'Missing %': missing_pct
+}).query('\`Missing Count\` > 0').sort_values('Missing %', ascending=False)
+
+print("Columns with missing values:")
+print(missing_df.to_string())
+
+# Visualise
+fig, ax = plt.subplots(figsize=(10, 4))
+missing_pct[missing_pct > 0].sort_values().plot(kind='barh', ax=ax, color='#e8778f', alpha=0.8)
+ax.set_title('Missing Value % by Column', fontsize=13, pad=12)
+ax.set_xlabel('Missing %')
+ax.axvline(20, color='gray', linestyle='--', alpha=0.5, label='20% threshold')
+ax.legend()
+plt.tight_layout()
+plt.show()`;
+}
+
+function buildDescStats() {
+  return `# Descriptive statistics
+print("Numeric columns statistics:")
+display(df.describe(percentiles=[.05, .25, .5, .75, .95]).round(3).T)
+
+# Skewness & kurtosis
+numeric_cols = df.select_dtypes(include=np.number).columns
+skew_kurt = pd.DataFrame({
+    'Skewness': df[numeric_cols].skew().round(3),
+    'Kurtosis': df[numeric_cols].kurt().round(3)
+})
+print("\\nSkewness & Kurtosis:")
+print(skew_kurt.to_string())`;
+}
+
+function buildDistCode(numCols, catCols) {
+  const nc = numCols.slice(0,6).map(c=>`'${c}'`).join(', ');
+  const cc = catCols.slice(0,4).map(c=>`'${c}'`).join(', ');
+  return `# Numeric distributions
+numeric_cols = [${nc}] or df.select_dtypes(include=np.number).columns.tolist()
+n_num = len(numeric_cols)
+if n_num > 0:
+    fig, axes = plt.subplots((n_num+2)//3, 3, figsize=(15, 4*((n_num+2)//3)))
+    axes = axes.flatten()
+    for i, col in enumerate(numeric_cols):
+        df[col].dropna().hist(ax=axes[i], bins=30, color='#9b89d4', alpha=0.8, edgecolor='white')
+        axes[i].set_title(col, fontsize=11)
+        axes[i].set_xlabel('')
+        # Add mean line
+        axes[i].axvline(df[col].mean(), color='#c44d6a', linestyle='--', alpha=0.8, label=f'mean={df[col].mean():.2f}')
+        axes[i].legend(fontsize=8)
+    for j in range(i+1, len(axes)):
+        axes[j].set_visible(False)
+    plt.suptitle('Numeric Feature Distributions', y=1.02, fontsize=14)
+    plt.tight_layout()
+    plt.show()
+
+# Categorical distributions
+cat_cols = [${cc}] or df.select_dtypes(include='object').columns.tolist()
+for col in cat_cols:
+    fig, ax = plt.subplots(figsize=(9, 3.5))
+    df[col].value_counts().head(12).sort_values().plot(kind='barh', ax=ax, color='#6fa896', alpha=0.85)
+    ax.set_title(f'Top values: {col}', fontsize=12)
+    plt.tight_layout()
+    plt.show()`;
+}
+
+function buildCorrCode(numCols) {
+  return `# Correlation heatmap
+numeric_cols = df.select_dtypes(include=np.number).columns
+corr = df[numeric_cols].corr()
+
+fig, ax = plt.subplots(figsize=(max(8, len(numeric_cols)), max(6, len(numeric_cols)-1)))
+mask = np.triu(np.ones_like(corr, dtype=bool))  # upper triangle mask
+sns.heatmap(
+    corr, mask=mask, ax=ax,
+    cmap='RdBu_r', center=0, vmin=-1, vmax=1,
+    annot=True, fmt='.2f', annot_kws={'size': 9},
+    square=True, linewidths=0.5, cbar_kws={'shrink': 0.8}
+)
+ax.set_title('Pearson Correlation Matrix', fontsize=13, pad=14)
+plt.tight_layout()
+plt.show()
+
+# High correlations
+threshold = 0.75
+pairs = []
+for i in range(len(corr.columns)):
+    for j in range(i+1, len(corr.columns)):
+        r = corr.iloc[i,j]
+        if abs(r) > threshold:
+            pairs.append((corr.columns[i], corr.columns[j], r))
+if pairs:
+    print(f"\\nHigh correlation pairs (|r| > {threshold}):")
+    for c1, c2, r in sorted(pairs, key=lambda x: -abs(x[2])):
+        print(f"  {c1} ↔ {c2}: {r:.3f}")`;
+}
+
+function buildOutlierCode(numCols) {
+  return `# Outlier detection using IQR method
+numeric_cols = df.select_dtypes(include=np.number).columns
+outlier_report = []
+
+for col in numeric_cols:
+    Q1 = df[col].quantile(0.25)
+    Q3 = df[col].quantile(0.75)
+    IQR = Q3 - Q1
+    lower, upper = Q1 - 1.5*IQR, Q3 + 1.5*IQR
+    outliers = df[(df[col] < lower) | (df[col] > upper)]
+    outlier_report.append({
+        'Column': col, 'Outlier Count': len(outliers),
+        'Outlier %': round(len(outliers)/len(df)*100, 2),
+        'Lower bound': round(lower, 3), 'Upper bound': round(upper, 3)
+    })
+
+out_df = pd.DataFrame(outlier_report).sort_values('Outlier %', ascending=False)
+print("Outlier report:")
+print(out_df.to_string(index=False))
+
+# Box plots
+fig, axes = plt.subplots(1, min(len(numeric_cols), 4), figsize=(14, 4))
+if len(numeric_cols) == 1:
+    axes = [axes]
+for i, col in enumerate(numeric_cols[:4]):
+    df[col].dropna().plot(kind='box', ax=axes[i], color={'boxes':'#e8778f','whiskers':'#9b89d4','caps':'#9b89d4','medians':'#3d7a6b'}, sym='o')
+    axes[i].set_title(col, fontsize=10)
+plt.suptitle('Box Plots — Outlier Visualisation', fontsize=13)
+plt.tight_layout()
+plt.show()`;
+}
+
+function buildPatternCode(numCols) {
+  return `# Hidden pattern detection
+
+# 1. Skewness analysis
+numeric_cols = df.select_dtypes(include=np.number).columns
+skewed = {col: df[col].skew() for col in numeric_cols if abs(df[col].skew()) > 1}
+print("Skewed features (|skew| > 1):", skewed)
+
+# 2. Near-zero variance
+std_devs = df[numeric_cols].std()
+low_var = std_devs[std_devs < 0.01].index.tolist()
+print("\\nNear-zero variance features:", low_var)
+
+# 3. Duplicate rows
+dups = df.duplicated().sum()
+print(f"\\nDuplicate rows: {dups} ({dups/len(df)*100:.2f}%)")
+
+# 4. Class imbalance (categorical)
+cat_cols = df.select_dtypes(include='object').columns
+for col in cat_cols:
+    counts = df[col].value_counts(normalize=True)
+    if counts.iloc[0] > 0.7:
+        print(f"\\nImbalance detected in '{col}': top value = {counts.index[0]} ({counts.iloc[0]*100:.1f}%)")
+
+# 5. Possible ID columns
+for col in df.columns:
+    if df[col].nunique() / len(df) > 0.9:
+        print(f"\\nPossible ID column: '{col}' ({df[col].nunique()} unique / {len(df)} rows)")
+
+# 6. Z-score anomaly detection
+from scipy import stats as sp
+for col in numeric_cols:
+    z = np.abs(sp.zscore(df[col].dropna()))
+    extreme = (z > 3).sum()
+    if extreme > 0:
+        print(f"\\nZ-score anomalies in '{col}': {extreme} values beyond ±3σ")`;
+}
+
+function buildPairplotCode(numCols) {
+  const nc = numCols.slice(0,5).map(c=>`'${c}'`).join(', ');
+  return `# Pairplot for numeric features
+numeric_cols = [${nc}]  # adjust as needed
+sample_df = df[numeric_cols].dropna().sample(min(500, len(df)), random_state=42)
+
+g = sns.pairplot(
+    sample_df,
+    diag_kind='kde',
+    plot_kws={'alpha': 0.4, 'color': '#9b89d4', 's': 15},
+    diag_kws={'color': '#e8778f', 'fill': True, 'alpha': 0.6}
+)
+g.fig.suptitle('Pairplot — Numeric Feature Relationships', y=1.02, fontsize=13)
+plt.show()
+
+print("\\n✅ EDA complete! Review the patterns above and proceed with feature engineering.")`;
+}
+
+// ─── NOTEBOOK COPY/DOWNLOAD ───
+function getNotebookCode() {
+  const analysis = analyseData(globalData, globalColumns);
+  const sections = [buildImportsCode(), buildLoadCode(globalFileName), buildOverviewCode(), buildMissingCode(), buildDescStats(),
+    buildDistCode(analysis.numCols, analysis.catCols), buildCorrCode(analysis.numCols), buildOutlierCode(analysis.numCols), buildPatternCode(analysis.numCols), buildPairplotCode(analysis.numCols)];
+  return sections.join('\n\n# ' + '─'.repeat(50) + '\n\n');
+}
+
+function copyNotebook() {
+  navigator.clipboard.writeText(getNotebookCode()).then(() => {
+    const btn = document.querySelector('.nb-copy');
+    btn.textContent = '✓ Copied!';
+    setTimeout(() => btn.textContent = 'Copy all code', 2000);
+  });
+}
+
+function downloadNotebook() {
+  const analysis = analyseData(globalData, globalColumns);
+  const cells = [
+    { cell_type:'markdown', source:`# EDA Analysis: ${globalFileName}\n\n*Auto-generated by EDA Studio*` },
+    { cell_type:'code', source: buildImportsCode() },
+    { cell_type:'code', source: buildLoadCode(globalFileName) },
+    { cell_type:'markdown', source:'## 1. Dataset overview' },
+    { cell_type:'code', source: buildOverviewCode() },
+    { cell_type:'markdown', source:'## 2. Missing values' },
+    { cell_type:'code', source: buildMissingCode() },
+    { cell_type:'markdown', source:'## 3. Statistics' },
+    { cell_type:'code', source: buildDescStats() },
+    { cell_type:'markdown', source:'## 4. Distributions' },
+    { cell_type:'code', source: buildDistCode(analysis.numCols, analysis.catCols) },
+    { cell_type:'markdown', source:'## 5. Correlations' },
+    { cell_type:'code', source: buildCorrCode(analysis.numCols) },
+    { cell_type:'markdown', source:'## 6. Outliers' },
+    { cell_type:'code', source: buildOutlierCode(analysis.numCols) },
+    { cell_type:'markdown', source:'## 7. Patterns' },
+    { cell_type:'code', source: buildPatternCode(analysis.numCols) },
+    { cell_type:'markdown', source:'## 8. Pairplot' },
+    { cell_type:'code', source: buildPairplotCode(analysis.numCols) },
+  ];
+  const nb = { nbformat: 4, nbformat_minor: 5, metadata: { kernelspec: { display_name:'Python 3', language:'python', name:'python3' }, language_info: { name:'python', version:'3.11.0' } }, cells: cells.map(c => ({ cell_type: c.cell_type, metadata:{}, source: c.source, outputs: [], execution_count: null })) };
+  const blob = new Blob([JSON.stringify(nb, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = `eda_${globalFileName}.ipynb`; a.click();
+}
+
+// ─── TABS ───
+function switchTab(name, el) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('tab-' + name).classList.add('active');
+}
+
+// ─── SAMPLE DATA ───
+function loadSampleData() {
+  globalFileName = 'sample_sales';
+  document.getElementById('fileBadge').textContent = '📊 sample_sales.csv';
+  showLoading();
+  const rng = (a,b,dec=0) => { const v = a + Math.random()*(b-a); return dec ? +v.toFixed(dec) : Math.round(v); };
+  const regions = ['North','South','East','West','Central'];
+  const categories = ['Electronics','Clothing','Food','Sports','Books'];
+  const rows = Array.from({length: 800}, (_,i) => {
+    const age = rng(18,75); const income = rng(20000, 120000);
+    const region = regions[Math.floor(Math.random()*5)];
+    const category = categories[Math.floor(Math.random()*5)];
+    const spend = Math.round(income * rng(0.02, 0.15, 2) * (age > 40 ? 1.2 : 0.9));
+    const satisfaction = rng(1, 5);
+    return { customer_id: 1000+i, age, income, region, category,
+      annual_spend: spend, num_purchases: rng(1,50), satisfaction,
+      loyalty_score: +(satisfaction * rng(0.8,1.2,2)).toFixed(1),
+      days_since_last_purchase: rng(1, 365),
+      email_opens: rng(0, 100),
+      churn_risk: age > 60 && satisfaction < 3 ? 'High' : satisfaction > 3 ? 'Low' : 'Medium',
+      is_premium: income > 80000 ? true : false
+    };
+  });
+  globalData = rows;
+  globalColumns = Object.keys(rows[0]);
+  setTimeout(() => {
+    buildDashboard(rows, globalColumns);
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('dashboard').style.display = 'block';
+    ['step1','step2','step3','step4','step5'].forEach(s => document.getElementById(s).classList.remove('active'));
+  }, 2500);
+}
+</script>
+</body>
+</html>
